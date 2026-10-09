@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Clínico Obstétrico - Profesional y Estudiantes</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <!-- Three.js (Motor 3D) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #120305;
+      --bg-panel: rgba(35, 6, 10, 0.95);
+      --border-guinda: #801e2b;
+      --accent-gold: #ffd700;
+      --accent-cyan: #00e5ff;
+      --accent-red: #ff3333;
+      --accent-green: #00e676;
+      --font-main: 'Roboto', sans-serif;
+      --font-code: 'Roboto Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background-color: var(--bg-dark);
+      color: #fff;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px;
+    }
+
+    .interactive { pointer-events: auto; }
+
+    /* Barra Superior */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-guinda);
+      border-radius: 12px;
+      padding: 10px 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+
+    .brand-title {
+      font-weight: 900;
+      font-size: 1rem;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .game-stats {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .stat-badge {
+      background: #4a0e17;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 15px;
+      border: 1px solid var(--border-guinda);
+    }
+
+    .diff-select {
+      background: #801e2b;
+      color: #fff;
+      border: 1px solid var(--accent-gold);
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Monitores Vitales */
+    .left-monitors {
+      position: absolute;
+      left: 12px;
+      top: 70px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 240px;
+    }
+
+    .monitor-box {
+      background: rgba(10, 2, 4, 0.92);
+      border: 2px solid var(--border-guinda);
+      border-radius: 8px;
+      padding: 8px;
+      color: var(--accent-cyan);
+      font-family: var(--font-code);
+      font-size: 0.8rem;
+    }
+
+    .monitor-title {
+      color: #d1a3a9;
+      font-size: 0.68rem;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    .vital-val {
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    /* Herramientas Izquierdas */
+    .left-tools {
+      position: absolute;
+      left: 12px;
+      bottom: 85px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tool-btn-circle {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #4a0e17;
+      border: 2px solid #a32235;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tool-btn-circle:hover {
+      background: #a32235;
+      transform: scale(1.08);
+    }
+
+    /* Barra Inferior */
+    .bottom-toolbar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-panel);
+      border: 2px solid var(--border-guinda);
+      border-radius: 35px;
+      padding: 8px 20px;
+      width: fit-content;
+      margin: 0 auto;
+    }
+
+    .action-circle-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #4a0e17;
+      border: 2px solid #a32235;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .action-circle-btn:hover {
+      background: #a32235;
+      transform: translateY(-3px);
+    }
+
+    .action-label {
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    /* Modales */
+    .modal-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1d0408;
+      border-radius: 14px;
+      border: 2px solid #a32235;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.9);
+      padding: 20px;
+      width: 92%;
+      max-width: 750px;
+      max-height: 85vh;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      color: #fff;
+    }
+
+    .modal-panel.active { display: block; }
+
+    .modal-header {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #ffffff;
+      border-bottom: 2px solid #4a0e17;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn-close {
+      background: #a32235;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .clinical-section {
+      background: #2d070d;
+      border: 1px solid #5a141e;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .clinical-title {
+      font-weight: bold;
+      color: var(--accent-gold);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .option-card {
+      border: 2px solid #5a141e;
+      border-radius: 8px;
+      padding: 10px;
+      background: #3b0a12;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .option-card:hover {
+      border-color: #a32235;
+      background: #5a141e;
+    }
+
+    .option-title {
+      font-weight: bold;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+
+    .option-desc {
+      font-size: 0.75rem;
+      color: #d1a3a9;
+      margin-top: 4px;
+    }
+
+    .btn-main {
+      background: #a32235;
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .btn-main:hover { background: #c82a42; }
+
+    /* Overlay Éxito */
+    #feedback-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 200;
+      pointer-events: none;
+      display: none;
+      text-align: center;
+    }
+
+    .feedback-icon {
+      font-size: 6rem;
+      line-height: 1;
+    }
+
+    .feedback-text {
+      background: rgba(15, 2, 4, 0.95);
+      color: #fff;
+      padding: 14px 28px;
+      border-radius: 20px;
+      border: 2px solid #00e676;
+      font-weight: 900;
+      font-size: 1.2rem;
+      margin-top: 8px;
+    }
+
+    /* Pantalla Arresto / Mala Praxis */
+    #arrest-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 0, 0, 0.96);
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .police-lights {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0.25;
+      animation: flashLights 0.5s infinite alternate;
+    }
+
+    @keyframes flashLights {
+      0% { background: rgba(255, 0, 0, 0.4); }
+      100% { background: rgba(0, 50, 255, 0.4); }
+    }
+
+    .arrest-box {
+      z-index: 510;
+      background: #180306;
+      border: 3px solid #ff3333;
+      border-radius: 20px;
+      padding: 22px;
+      max-width: 750px;
+      max-height: 90vh;
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    .arrest-title {
+      font-size: 1.5rem;
+      color: #ff3333;
+      font-weight: 900;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .arrest-section {
+      background: #2b070c;
+      border: 1px solid #731b26;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
+    .arrest-subtitle {
+      color: #ffd700;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+    }
+
+    .ref-box {
+      font-size: 0.75rem;
+      color: #00e5ff;
+      background: rgba(0, 229, 255, 0.08);
+      border-left: 3px solid #00e5ff;
+      padding: 8px 10px;
+      margin-top: 6px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <!-- PANTALLA MALA PRAXIS / POLICÍA -->
+  <div id="arrest-screen">
+    <div class="police-lights"></div>
+    <div class="arrest-box">
+      <div style="font-size: 3.5rem; text-align: center; margin-bottom: 5px;">🚔 🚨 ⚖️</div>
+      <div class="arrest-title">DETENCIÓN POR MALA PRAXIS EN OBSTETRICIA</div>
+      
+      <div class="arrest-section">
+        <div class="arrest-subtitle">❌ ERROR DE CONDUCTA DE OBSTETRICIA (IATROGENIA)</div>
+        <div id="arrest-why" style="color: #ff8888;">--</div>
+      </div>
+
+      <div class="arrest-section">
+        <div class="arrest-subtitle">✅ MANEJO CLÍNICO OBSTÉTRICO CORRECTO QUE DEBIÓ REALIZARSE</div>
+        <div id="arrest-correct" style="color: #88ffaa;">--</div>
+      </div>
+
+      <div class="arrest-section">
+        <div class="arrest-subtitle">📚 JUSTIFICACIÓN CIENTÍFICA Y GUÍAS OFICIALES (ACOG / OMS / FIGO / MINSA)</div>
+        <div id="arrest-evidence" style="color: #e0e0e0;">--</div>
+        <div id="arrest-citation" class="ref-box">--</div>
+      </div>
+
+      <div style="text-align: center; margin-top: 15px;">
+        <button class="btn-main" onclick="closeArrestAndReset()">🔄 Continuar Evaluación Practica</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAY FEEDBACK -->
+  <div id="feedback-overlay">
+    <div class="feedback-icon" id="fb-icon">✔️</div>
+    <div class="feedback-text" id="fb-text">¡EXCELENTE MANEJO OBSTÉTRICO!</div>
+  </div>
+
+  <!-- INTERFAZ PRINCIPAL -->
+  <div id="ui-overlay">
+    
+    <!-- Barra Superior -->
+    <div class="top-bar interactive">
+      <div class="brand-title">
+        <span>🤰</span> SIMULADOR DE ATENCIÓN Y EMERGENCIAS OBSTÉTRICAS
+      </div>
+      <div class="game-stats">
+        <label style="font-size: 0.8rem; color: #ffd700;">Nivel:</label>
+        <select id="difficulty-select" class="diff-select" onchange="changeDifficulty()">
+          <option value="easy">🟢 Fácil (Estudiantes / Pregrado)</option>
+          <option value="medium" selected>🟡 Intermedio (Obstetras)</option>
+          <option value="hard">🔴 Difícil (UCI Obstétrica / Emergencia)</option>
+        </select>
+        <span class="stat-badge">Caso: <strong id="lbl-case-id">#1001</strong></span>
+        <span class="stat-badge">Aciertos (✔️): <strong id="lbl-checks" style="color: #00e676;">0</strong></span>
+        <span class="stat-badge">Mala Praxis (🚨): <strong id="lbl-errors" style="color: #ff3333;">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Monitores Obstétricos -->
+    <div class="left-monitors">
+      <div class="monitor-box">
+        <div class="monitor-title">Presión Arterial / PAM</div>
+        <div class="vital-val" style="color: #ff5252;" id="v-bp">120 / 80</div>
+        <div style="font-size: 0.7rem; color: #ffd700;">PAM: <span id="v-pam">93</span> mmHg</div>
+      </div>
+      <div class="monitor-box">
+        <div class="monitor-title">Materno: Pulse / SatO2</div>
+        <div class="vital-val" style="color: #69f0ae;" id="v-hr">80 BPM</div>
+        <div style="font-size: 0.7rem; color: #00e5ff;">SpO2: <span id="v-spo2">98</span>% | Temp: <span id="v-temp">36.7</span>°C</div>
+      </div>
+      <div class="monitor-box">
+        <div class="monitor-title">Monitoreo Fetal (LCF / AU)</div>
+        <div class="vital-val" style="color: #00e5ff;" id="v-fhr">140 BPM</div>
+        <div style="font-size: 0.7rem; color: #ff5252;" id="v-pattern">Patrón: Tranquilizador</div>
+      </div>
+    </div>
+
+    <!-- Herramientas -->
+    <div class="left-tools interactive">
+      <div class="tool-btn-circle" title="Posición Ginecológica / Trendelenburg / Lateral Izquierda" onclick="app3D.nextPatientPose()">🛌</div>
+      <div class="tool-btn-circle" title="Cambiar Vista de Sala Obstétrica" onclick="app3D.nextCameraView()">👁️</div>
+    </div>
+
+    <!-- Toolbar Inferior -->
+    <div class="bottom-toolbar interactive">
+      <div class="action-circle-btn" onclick="openModal('modal-cases')" title="Generar Caso Clínico">
+        🎲
+        <span class="action-label">Caso</span>
+      </div>
+      <div class="action-circle-btn" onclick="openModal('modal-dialogs')" title="Anamnesis / Filia">
+        💬
+        <span class="action-label">Anamnesis</span>
+      </div>
+      <div class="action-circle-btn" onclick="openModal('modal-exam')" title="Examen Físico y Gineco-Obstétrico">
+        🩺
+        <span class="action-label">Examen</span>
+      </div>
+      <div class="action-circle-btn" onclick="openModal('modal-tests')" title="Laboratorio / Eco Obstétrica">
+        🧪
+        <span class="action-label">Auxiliares</span>
+      </div>
+      <div class="action-circle-btn" onclick="openModal('modal-proced')" title="Maniobras y Procedimientos Obstétricos">
+        🤲
+        <span class="action-label">Maniobras</span>
+      </div>
+      <div class="action-circle-btn" onclick="openModal('modal-pharmacy')" title="Farmacoterapia y Manejo Obstétrico">
+        💊
+        <span class="action-label">Fármacos</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL: CASOS -->
+  <div class="modal-panel interactive" id="modal-cases">
+    <div class="modal-header">
+      <span>🤰 Evaluación y Manejo Obstétrico</span>
+      <button class="btn-close" onclick="closeModal('modal-cases')">✕</button>
+    </div>
+    <p style="font-size: 0.82rem; color: #d1a3a9; margin-bottom: 10px;">Selecciona la conducta terapéutica o procedimental según las Guías Oficiales de Obstetricia. Una decisión errónea gatillará la sanción por Mala Praxis:</p>
+    
+    <div style="text-align: center; margin-bottom: 12px;">
+      <button class="btn-main" onclick="generateUniqueCase()">🔄 Generar Nuevo Paciente Obstétrico</button>
+    </div>
+
+    <div id="case-info-box" style="display: none;">
+      <div class="clinical-section">
+        <div class="clinical-title" id="c-title">Caso #--</div>
+        <div id="c-desc" style="color: #eee;">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ANAMNESIS -->
+  <div class="modal-panel interactive" id="modal-dialogs">
+    <div class="modal-header">
+      <span>💬 Anamnesis y Carné Perinatal</span>
+      <button class="btn-close" onclick="closeModal('modal-dialogs')">✕</button>
+    </div>
+    <div id="anamnesis-container"></div>
+  </div>
+
+  <!-- MODAL: EXAMEN FÍSICO -->
+  <div class="modal-panel interactive" id="modal-exam">
+    <div class="modal-header">
+      <span>🩺 Examen Físico Obstétrico y Tacto Vaginal</span>
+      <button class="btn-close" onclick="closeModal('modal-exam')">✕</button>
+    </div>
+    <div id="exam-container"></div>
+  </div>
+
+  <!-- MODAL: LABORATORIO -->
+  <div class="modal-panel interactive" id="modal-tests">
+    <div class="modal-header">
+      <span>🧪 Exámenes Auxiliares, Ecografía y MEFI</span>
+      <button class="btn-close" onclick="closeModal('modal-tests')">✕</button>
+    </div>
+    <div id="labs-container"></div>
+  </div>
+
+  <!-- MODAL: MANIOBRAS OBSTÉTRICAS -->
+  <div class="modal-panel interactive" id="modal-proced">
+    <div class="modal-header">
+      <span>🤲 Maniobras y Procedimientos Obstétricos (No Quirúrgicos / Quirúrgicos)</span>
+      <button class="btn-close" onclick="closeModal('modal-proced')">✕</button>
+    </div>
+    <p style="font-size: 0.82rem; color: #d1a3a9;">Selecciona la maniobra o procedimiento indicado:</p>
+    <div class="options-grid" id="proced-grid"></div>
+  </div>
+
+  <!-- MODAL: FARMACIA OBSTÉTRICA -->
+  <div class="modal-panel interactive" id="modal-pharmacy">
+    <div class="modal-header">
+      <span>💊 Farmacoterapia y Claves Obstétricas (Roja, Azul, Amarilla)</span>
+      <button class="btn-close" onclick="closeModal('modal-pharmacy')">✕</button>
+    </div>
+    <p style="font-size: 0.82rem; color: #d1a3a9;">Selecciona el esquema farmacológico obstétrico adecuado:</p>
+    <div class="options-grid" id="med-grid"></div>
+  </div>
+
+  <script>
+    /* --------------------------------------------------------------------------
+       MOTOR 3D SALA DE PARTO / CENTRO OBSTÉTRICO
+       -------------------------------------------------------------------------- */
+    class VirtualPatient3DEngine {
+      constructor() {
+        this.container = document.getElementById('canvas-container');
+        this.scene = new THREE.Scene();
+        this.camera = null;
+        this.renderer = null;
+
+        this.patientGroup = null;
+        this.abdomenMesh = null;
+
+        this.cameraViews = [
+          { pos: [0, 4.5, 0.2], target: [0, 0, 0] },
+          { pos: [-2.0, 2.0, 2.0], target: [0, 0, 0] },
+          { pos: [0, 1.8, -1.8], target: [0, 0.3, -1.8] }
+        ];
+        this.currentViewIndex = 0;
+        this.currentPoseIndex = 0;
+
+        this.init();
+      }
+
+      init() {
+        this.scene.background = new THREE.Color(0x120305);
+
+        this.camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+        this.camera.position.set(...this.cameraViews[0].pos);
+        this.camera.lookAt(...this.cameraViews[0].target);
+
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.container.appendChild(this.renderer.domElement);
+
+        const ambient = new THREE.AmbientLight(0xfff0f2, 0.8);
+        this.scene.add(ambient);
+
+        const dirLight = new THREE.DirectionalLight(0xffe6ea, 0.8);
+        dirLight.position.set(2, 10, 5);
+        this.scene.add(dirLight);
+
+        this.buildObstetricRoom();
+        this.buildPatientModel();
+
+        window.addEventListener('resize', () => this.onWindowResize());
+        this.animate();
+      }
+
+      buildObstetricRoom() {
+        const room = new THREE.Group();
+
+        // Camilla gineco-obstétrica
+        const bedBaseGeo = new THREE.BoxGeometry(2.3, 0.5, 4.2);
+        const bedBaseMat = new THREE.MeshToonMaterial({ color: 0x1f0509 });
+        const bedBase = new THREE.Mesh(bedBaseGeo, bedBaseMat);
+        bedBase.position.set(0, -0.5, 0);
+        room.add(bedBase);
+
+        const sheetGeo = new THREE.BoxGeometry(2.1, 0.25, 4.0);
+        const sheetMat = new THREE.MeshToonMaterial({ color: 0x4a0e17 });
+        const sheet = new THREE.Mesh(sheetGeo, sheetMat);
+        sheet.position.set(0, -0.2, 0);
+        room.add(sheet);
+
+        // Perfusión IV
+        const poleGeo = new THREE.CylinderGeometry(0.02, 0.02, 3.2);
+        const poleMat = new THREE.MeshToonMaterial({ color: 0x888888 });
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.set(-1.3, 0.8, -1.0);
+        room.add(pole);
+
+        const ivBagGeo = new THREE.BoxGeometry(0.2, 0.35, 0.12);
+        const ivBagMat = new THREE.MeshToonMaterial({ color: 0x00e5ff });
+        const ivBag = new THREE.Mesh(ivBagGeo, ivBagMat);
+        ivBag.position.set(-1.3, 2.0, -1.0);
+        room.add(ivBag);
+
+        this.scene.add(room);
+      }
+
+      buildPatientModel() {
+        this.patientGroup = new THREE.Group();
+
+        const skinMat = new THREE.MeshToonMaterial({ color: 0xf5c3ad });
+        const topMat = new THREE.MeshToonMaterial({ color: 0xd87093 });
+
+        const headGeo = new THREE.SphereGeometry(0.3, 32, 32);
+        headGeo.scale(0.95, 1.1, 1.0);
+        const head = new THREE.Mesh(headGeo, skinMat);
+        head.position.set(0, 0.18, -1.5);
+        this.patientGroup.add(head);
+
+        const torsoGeo = new THREE.CylinderGeometry(0.35, 0.38, 0.85, 24);
+        const torso = new THREE.Mesh(torsoGeo, topMat);
+        torso.rotation.x = Math.PI / 2;
+        torso.position.set(0, 0.1, -0.75);
+        this.patientGroup.add(torso);
+
+        // Útero gravídico
+        const abdGeo = new THREE.SphereGeometry(0.55, 32, 32);
+        abdGeo.scale(1.1, 1.2, 0.95);
+        this.abdomenMesh = new THREE.Mesh(abdGeo, skinMat);
+        this.abdomenMesh.position.set(0, 0.2, 0.1);
+        this.patientGroup.add(this.abdomenMesh);
+
+        const blanketGeo = new THREE.BoxGeometry(1.8, 0.3, 1.8);
+        const blanketMat = new THREE.MeshToonMaterial({ color: 0x801e2b });
+        const blanket = new THREE.Mesh(blanketGeo, blanketMat);
+        blanket.position.set(0, 0.1, 1.1);
+        this.patientGroup.add(blanket);
+
+        this.scene.add(this.patientGroup);
+      }
+
+      animate() {
+        requestAnimationFrame(() => this.animate());
+        const t = Date.now() * 0.002;
+        if (this.abdomenMesh) {
+          this.abdomenMesh.position.y = 0.2 + Math.sin(t * 2) * 0.008;
+        }
+        this.renderer.render(this.scene, this.camera);
+      }
+
+      nextCameraView() {
+        this.currentViewIndex = (this.currentViewIndex + 1) % this.cameraViews.length;
+        const v = this.cameraViews[this.currentViewIndex];
+        this.camera.position.set(...v.pos);
+        this.camera.lookAt(...v.target);
+      }
+
+      nextPatientPose() {
+        this.currentPoseIndex = (this.currentPoseIndex + 1) % 3;
+        if (this.currentPoseIndex === 0) {
+          // Decúbito Dorsal / Ginecológica
+          this.patientGroup.rotation.z = 0;
+          this.patientGroup.rotation.x = 0;
+        } else if (this.currentPoseIndex === 1) {
+          // Trendelenburg
+          this.patientGroup.rotation.x = -0.2;
+        } else if (this.currentPoseIndex === 2) {
+          // Decúbito Lateral Izquierdo
+          this.patientGroup.rotation.z = 0.35;
+        }
+      }
+
+      onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       BANCO DE CASOS OBSTÉTRICOS CLASIFICADOS POR DIFICULTAD
+       -------------------------------------------------------------------------- */
+    let app3D = null;
+    let checksCount = 0;
+    let errorsCount = 0;
+    let currentCase = null;
+    let currentDifficulty = "medium";
+
+    const NAMES = ["Dra. Valery Vance", "Sofía Mendoza", "Lucía Alarcón", "Camila Benítez", "Elena Rostova", "Sora Takahashi", "Mariana Quispe", "Rosa Flores"];
+
+    const OBSTETRIC_CASES = {
+      // 🟢 NIVEL FÁCIL (Estudiantes de Obstetricia / Atención Prenatal y Parto Normal)
+      easy: [
+        {
+          type: "Atención del Alumbramiento Activo (Manejo Activo del Tercer Periodo - MATP)",
+          correctType: "med",
+          correctVal: "Oxitocina 10 UI IM tras la salida del hombro anterior o feto",
+          bp: "115 / 75", hr: 82, fhr: 0, pattern: "Recién Nacido Vivo Sanó en Contacto Piel a Piel", spo2: 98, pam: 88, temp: 36.6,
+          motivo: "Expulsión fetal completa sin complicaciones. Período de alumbramiento.",
+          antecedentes: "G1 P1001. Gestación a término de 39 semanas. Control prenatal adecuado (6 controles).",
+          enfermedadActual: "Paciente primigesta que acaba de tener parto vaginal eutócico de RN de 3,200g. Se encuentra hemodinámicamente estable, con alumbramiento pendiente.",
+          examFisico: "• PA: 115/75 mmHg | FC: 82 bpm.<br>• Útero globoso con fondo a nivel umbilical.<br>• No hay sangrado vaginal activo excesivo.",
+          labHemograma: "• Hb: 12.1 g/dL | Hto: 36%<br>• Plaquetas: 240,000 /mm³",
+          labBioq: "• Perfil de coagulación normal.<br>• Grupo sanguíneo: O RH (+)",
+          labEco: "• Placenta normoinserta antes del desprendimiento.",
+          errorReason: "Traccionar el cordón umbilical de forma violenta sin contracción o aplicar compresión fúndica brusca (Maniobra de Kristeller) puede causar Inversión Uterina Aguda o rotura del cordón.",
+          correctActionDesc: "Realizar Manejo Activo del Tercer Periodo del Parto (MATP): Administrar Oxitocina 10 UI IM inmediatamente tras el nacimiento, realizar tracción controlada del cordón con contracondición suprapúbica (Maniobra de Brandt-Andrews) y masaje uterino tras la salida de la placenta.",
+          scientificEvidence: "El MATP reduce el riesgo de Hemorragia Postparto (HPP) en más del 60% en todos los partos vaginales según recomendaciones globales de FIGO y OMS.",
+          citation: "FIGO/ICM Joint Statement on Management of the Third Stage of Labor (2021) & Guía Técnica MINSA de Atención del Parto (2022)."
+        },
+        {
+          type: "Distocia de Hombros (Emergencia en Centro Obstétrico)",
+          correctType: "proc",
+          correctVal: "Maniobra de McRoberts + Presión Suprapúbica",
+          bp: "120 / 80", hr: 95, fhr: 90, pattern: "Bradicardia Fetal Súbita durante la Cabeza 'Signo de la Tortuga'", spo2: 97, pam: 93, temp: 36.8,
+          motivo: "Detención del parto tras la salida de la cabeza fetal. Retracción del perineo.",
+          antecedentes: "G2 P1001. Gestación de 40 semanas. Estimado de peso fetal por ultrasonido: 4,100g.",
+          enfermedadActual: "Durante la atención del parto vaginal, la cabeza fetal emerge pero se adosa fuertemente al perineo ('signo de la tortuga'). El hombro anterior fetal queda impactado tras la sínfisis del pubis.",
+          examFisico: "• Cabeza fetal desprendida, no se logra la rotación externa ni desprendimiento de hombros.<br>• Ausencia de descenso con la tracción axial suave habitual.",
+          labHemograma: "• Hb: 11.8 g/dL",
+          labBioq: "• Normal.",
+          labEco: "• Feto único macrosómico en cefálica.",
+          errorReason: "Ejercer tracción excesiva de la cabeza fetal o realizar presión sobre el fondo uterino (Kristeller) impacta más el hombro anterior, arriesgando la rotura del plexo braquial (parálisis de Erb) o rotura uterina.",
+          correctActionDesc: "Suspender el pujo, flexionar e hiperabducir las piernas de la madre hacia el abdomen (Maniobra de McRoberts) y aplicar presión directa suprapúbica hacia abajo y lateral para desimpactar el hombro anterior.",
+          scientificEvidence: "La Maniobra de McRoberts combinada con presión suprapúbica resuelve exitosamente hasta el 90% de los casos de distocia de hombros con menor tasa de trauma obstétrico.",
+          citation: "ACOG Practice Bulletin No. 178: Shoulder Dystocia (Reaffirmed 2023) & RCOG Green-top Guideline No. 42."
+        }
+      ],
+
+      // 🟡 NIVEL INTERMEDIO (Obstetras / Emergencias Médicas Obstétricas)
+      medium: [
+        {
+          type: "Preeclampsia Con Criterios de Severidad (Clave Azul)",
+          correctType: "med",
+          correctVal: "Sulfato de Magnesio (Zuspan) + Labetalol O Nifedipino Oral",
+          bp: "170 / 110", hr: 105, fhr: 125, pattern: "Variabilidad Disminuida, Desaceleraciones Variables", spo2: 95, pam: 130, temp: 36.7,
+          motivo: "Cefalea intensa holocraneana, tinnitus y fosfenos en gestante de 34 semanas.",
+          antecedentes: "G1 P0. Nulo control prenatal regular. Ingresa referida de puesto de salud.",
+          enfermedadActual: "Paciente acude por dolor de cabeza palpitante de 12 horas de evolución, visión de 'chispitas' y dolor en boca del estómago.",
+          examFisico: "• PA: 170/110 mmHg repetida a los 15 minutos.<br>• Edema focalizado en cara y extremidades (+3/4).<br>• Reflexia rotuliana hiperactiva (clonus de 2 batidos).",
+          labHemograma: "• Hb: 12.5 g/dL | Plaquetas: 110,000 /mm³",
+          labBioq: "• Proteinuria en tira reactiva: (+++)<br>• TGO: 85 U/L | Creatinina: 1.1 mg/dL",
+          labEco: "• Feto único de 34 semanas con RCIU Tipo I.",
+          errorReason: "Dar diuréticos o bajar bruscamente la presión con sublingual rápido causa hipoperfusión placentaria severa y sufrimiento fetal agudo.",
+          correctActionDesc: "Activar Clave Azul. Iniciar esquema de Sulfato de Magnesio (bolo 4g IV en 20 min y mantenimiento 1-2 g/h) para prevención de eclampsia + Labetalol IV o Nifedipino 10mg VO para control tensional.",
+          scientificEvidence: "El Sulfato de Magnesio es el fármaco de elección indiscutible para reducir en un 50% el riesgo de eclampsia frente a otros anticonvulsivantes como diazepam o fenitoína.",
+          citation: "Guía de Práctica Clínica MINSA Preeclampsia/Eclampsia & ACOG Practice Bulletin No. 222 (2023)."
+        },
+        {
+          type: "Atonía Uterina Inmediata - Postparto (Clave Roja)",
+          correctType: "med",
+          correctVal: "Masaje Uterino Bimanual + Oxitocina IV + Ergometrina / Misoprostol + Ácido Tranexámico",
+          bp: "85 / 50", hr: 125, fhr: 0, pattern: "Postparto con Sangrado > 1000ml", spo2: 93, pam: 61, temp: 36.1,
+          motivo: "Hemorragia profusa vaginal a los 10 minutos del parto vaginal.",
+          antecedentes: "G4 P4004. Trabajo de parto precipitado.",
+          enfermedadActual: "Paciente que tras alumbramiento presenta sangrado rutilante constante en " +
+                           "sábana. Se aprecia pálida y diaforética.",
+          examFisico: "• PA: 85/50 mmHg | FC: 125 bpm.<br>• Útero blando, flácido, que sobrepasa el ombligo y no se contrae.",
+          labHemograma: "• Hb previa: 11.5 g/dL | Hb actual estimada: < 7 g/dL",
+          labBioq: "• Coagulación en proceso.",
+          labEco: "• Sin restos placentarios retenidos en cavidad.",
+          errorReason: "Dormirse en la reposición de líquidos o no administrar Ácido Tranexámico precozmente (<3 horas) aumenta drásticamente la mortalidad materna por shock irreversible.",
+          correctActionDesc: "Activar Clave Roja. Realizar masaje bimanual, administrar Oxitocina en infusión continua + Ergometrina IM (si no hay hipertensión) o Misoprostol 800 mcg rectal + Ácido Tranexámico 1g IV en los primeros 180 min.",
+          scientificEvidence: "El ensayo WOMAN demostró que el Ácido Tranexámico 1g IV administrado precozmente reduce la mortalidad por sangrado postparto en un 31%.",
+          citation: "OMS Guidelines for the Management of Postpartum Hemorrhage (2023) & Guía de Manejo Clave Roja Obstétrica."
+        }
+      ],
+
+      // 🔴 NIVEL DIFÍCIL (UCI Obstétrica / Casos Complejos)
+      hard: [
+        {
+          type: "Síndrome HELLP Severo + Hematoma Hepático Subcapsular Roto",
+          correctType: "proc",
+          correctVal: "Estabilización Hemodinámica + Laparotomía Exploradora con Empaquetamiento Hepático",
+          bp: "185 / 120", hr: 135, fhr: 100, pattern: "Desaceleraciones Tardías Severas (DIP II)", spo2: 90, pam: 141, temp: 35.8,
+          motivo: "Epigastralgia súbita severa en puñalada, shock hemodinámico y amaurosis.",
+          antecedentes: "G2 P1. 33 semanas de gestación. Remitida por epigastralgia tratada como gastritis.",
+          enfermedadActual: "Ingresa a UCI con alteración del estado de conciencia, palidez marcada de mucosas y colapso circulatorio progresivo.",
+          examFisico: "• PA: 185/120 mmHg | FC: 135 bpm.<br>• Abdomen con defensa, dolor agudo en hipocondrio derecho y masa palpable.",
+          labHemograma: "• Plaquetas: 28,000 /mm³ | Hb: 5.8 g/dL<br>• Frotis: Esquistocitos (Hemólisis)",
+          labBioq: "• TGO: 1,800 U/L | TGP: 1,500 U/L | LDH: 2,400 U/L",
+          labEco: "• FAST Abdominal: >1500 ml de hemoperitoneo por rotura de cápsula de Glisson.",
+          errorReason: "Un legrado o la demora quirúrgica sin empaquetamiento hepático lleva a la muerte materna inmediata por coagulopatía y exanguinación.",
+          correctActionDesc: "Iniciar transfusión masiva de hemoderivados (1:1:1), controlar la presión tensional e intervenir de urgencia para Laparotomía Exploradora y empaquetamiento hepático (Packing) conjuntamente con Cirugía.",
+          scientificEvidence: "La rotura hepática en HELLP exige intervención quirúrgica inmediata con empaquetamiento de compresas para hemostasia de rescate salvadora de vida.",
+          citation: "FIGO Guidelines on Preeclampsia (2022) & SMFM Consult Series: Management of HELLP Syndrome."
+        }
+      ]
+    };
+
+    const ALL_MEDS = [
+      { name: "Oxitocina 10 UI IM tras la salida del hombro anterior o feto", desc: "Manejo Activo del Tercer Periodo (MATP)." },
+      { name: "Sulfato de Magnesio (Zuspan) + Labetalol O Nifedipino Oral", desc: "Manejo Clave Azul para Prevención de Eclampsia." },
+      { name: "Masaje Uterino Bimanual + Oxitocina IV + Ergometrina / Misoprostol + Ácido Tranexámico", desc: "Manejo Clave Roja por Atonía Uterina." },
+      { name: "Penicilina G Sódica 5 Millones UI IV", desc: "Profilaxis de Sepsis por Estreptococo del Grupo B." }
+    ];
+
+    const ALL_PROCEDURES = [
+      { name: "Maniobra de McRoberts + Presión Suprapúbica", desc: "Resolución obstétrica de Distocia de Hombros." },
+      { name: "Estabilización Hemodinámica + Laparotomía Exploradora con Empaquetamiento Hepático", desc: "Intervención quirúrgica de urgencia para hematoma hepático roto." },
+      { name: "Taponamiento Intrauterino con Balón de Bakri", desc: "Control mecánico de la atonía uterina refractaria." },
+      { name: "Maniobra de Kristeller (Presión Fúndica Abdominal)", desc: "Contraindicada e iatrogénica en la práctica moderna." }
+    ];
+
+    function changeDifficulty() {
+      currentDifficulty = document.getElementById('difficulty-select').value;
+      generateUniqueCase();
+    }
+
+    function generateUniqueCase() {
+      const caseList = OBSTETRIC_CASES[currentDifficulty];
+      const base = caseList[Math.floor(Math.random() * caseList.length)];
+      const id = Math.floor(Math.random() * 9000) + 1000;
+      const name = NAMES[Math.floor(Math.random() * NAMES.length)];
+      const age = Math.floor(Math.random() * 16) + 18;
+
+      currentCase = {
+        id: id,
+        name: name,
+        age: age,
+        condition: base.type,
+        correctType: base.correctType,
+        correctVal: base.correctVal,
+        vitals: { bp: base.bp, hr: base.hr, fhr: base.fhr, pattern: base.pattern, spo2: base.spo2, pam: base.pam, temp: base.temp },
+        motivo: base.motivo,
+        antecedentes: base.antecedentes,
+        enfermedadActual: base.enfermedadActual,
+        examFisico: base.examFisico,
+        labHemograma: base.labHemograma,
+        labBioq: base.labBioq,
+        labEco: base.labEco,
+        errorReason: base.errorReason,
+        correctActionDesc: base.correctActionDesc,
+        scientificEvidence: base.scientificEvidence,
+        citation: base.citation
+      };
+
+      // Actualizar UI
+      document.getElementById('lbl-case-id').innerText = `#${currentCase.id}`;
+      document.getElementById('v-bp').innerText = currentCase.vitals.bp;
+      document.getElementById('v-pam').innerText = currentCase.vitals.pam;
+      document.getElementById('v-hr').innerText = `${currentCase.vitals.hr} BPM`;
+      document.getElementById('v-spo2').innerText = currentCase.vitals.spo2;
+      document.getElementById('v-temp').innerText = currentCase.vitals.temp;
+      document.getElementById('v-fhr').innerText = currentCase.vitals.fhr > 0 ? `${currentCase.vitals.fhr} BPM` : 'N/A';
+      document.getElementById('v-pattern').innerText = `Patrón: ${currentCase.vitals.pattern}`;
+
+      // Modal Casos
+      document.getElementById('c-title').innerText = `Caso Obstétrico #${currentCase.id} • ${currentCase.name} (${currentCase.age} años)`;
+      document.getElementById('c-desc').innerHTML = `<strong>Diagnóstico / Complicación:</strong> ${currentCase.condition}<br><strong>Motivo de Ingreso:</strong> ${currentCase.motivo}`;
+      document.getElementById('case-info-box').style.display = 'block';
+
+      // Modal Anamnesis
+      document.getElementById('anamnesis-container').innerHTML = `
+        <div class="clinical-section">
+          <div class="clinical-title">👤 Gestante / Puérpera</div>
+          <strong>Nombre:</strong> ${currentCase.name} | <strong>Edad:</strong> ${currentCase.age} años
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-title">🚨 Motivo de Consulta / Ingreso</div>
+          "${currentCase.motivo}"
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-title">📋 Carné Perinatal y Antecedentes</div>
+          ${currentCase.antecedentes}
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-title">📖 Enfermedad Actual e Evolución</div>
+          ${currentCase.enfermedadActual}
+        </div>
+      `;
+
+      // Modal Examen Físico
+      document.getElementById('exam-container').innerHTML = `
+        <div class="clinical-section">
+          <div class="clinical-title">🩺 Evaluación Gineco-Obstétrica Dirigida</div>
+          ${currentCase.examFisico}
+        </div>
+      `;
+
+      // Modal Laboratorio
+      document.getElementById('labs-container').innerHTML = `
+        <div class="clinical-section">
+          <div class="clinical-title">🩸 Hematología y Coagulación</div>
+          ${currentCase.labHemograma}
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-title">🧪 Bioquímica y Tira de Orina</div>
+          ${currentCase.labBioq}
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-title">🖥️ Ecografía Obstétrica y Fetal</div>
+          ${currentCase.labEco}
+        </div>
+      `;
+
+      // Llenar Fármacos
+      let medHTML = '';
+      ALL_MEDS.forEach(m => {
+        medHTML += `
+          <div class="option-card" onclick="executeTreatment('med', '${m.name}')">
+            <div class="option-title">💊 ${m.name}</div>
+            <div class="option-desc">${m.desc}</div>
+          </div>
+        `;
+      });
+      document.getElementById('med-grid').innerHTML = medHTML;
+
+      // Llenar Procedimientos
+      let procHTML = '';
+      ALL_PROCEDURES.forEach(p => {
+        procHTML += `
+          <div class="option-card" onclick="executeTreatment('proc', '${p.name}')">
+            <div class="option-title">🤲 ${p.name}</div>
+            <div class="option-desc">${p.desc}</div>
+          </div>
+        `;
+      });
+      document.getElementById('proced-grid').innerHTML = procHTML;
+    }
+
+    function executeTreatment(type, selectedVal) {
+      closeModal('modal-pharmacy');
+      closeModal('modal-proced');
+
+      if (!currentCase) return;
+
+      const isCorrect = (type === currentCase.correctType && selectedVal.trim().toLowerCase().includes(currentCase.correctVal.trim().toLowerCase()));
+
+      if (isCorrect) {
+        checksCount++;
+        document.getElementById('lbl-checks').innerText = checksCount;
+        
+        const fbOverlay = document.getElementById('feedback-overlay');
+        document.getElementById('fb-icon').innerText = "✔️";
+        document.getElementById('fb-icon').style.color = "#00e676";
+        document.getElementById('fb-text').innerText = "¡EXCELENTE ATENCIÓN OBSTÉTRICA!";
+        fbOverlay.style.display = 'block';
+
+        setTimeout(() => {
+          fbOverlay.style.display = 'none';
+        }, 2500);
+      } else {
+        errorsCount++;
+        document.getElementById('lbl-errors').innerText = errorsCount;
+        triggerArrest(selectedVal);
+      }
+    }
+
+    function triggerArrest(wrongAction) {
+      const arrestScreen = document.getElementById('arrest-screen');
+      
+      document.getElementById('arrest-why').innerHTML = `
+        Seleccionaste la conducta: <strong>"${wrongAction}"</strong> para el caso de <strong>${currentCase.condition}</strong>.<br>
+        ${currentCase.errorReason}
+      `;
+
+      document.getElementById('arrest-correct').innerHTML = `
+        ${currentCase.correctActionDesc}
+      `;
+
+      document.getElementById('arrest-evidence').innerHTML = `
+        ${currentCase.scientificEvidence}
+      `;
+
+      document.getElementById('arrest-citation').innerHTML = `
+        📖 <strong>Sustento Científico y Guía Oficial:</strong> ${currentCase.citation}
+      `;
+
+      arrestScreen.style.display = 'flex';
+    }
+
+    function closeArrestAndReset() {
+      document.getElementById('arrest-screen').style.display = 'none';
+      generateUniqueCase();
+    }
+
+    function openModal(modalId) {
+      document.getElementById(modalId).classList.add('active');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    window.onload = () => {
+      app3D = new VirtualPatient3DEngine();
+      generateUniqueCase();
+    };
+  </script>
+</body>
+</html>
